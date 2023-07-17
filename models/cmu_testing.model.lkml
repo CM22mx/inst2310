@@ -3,12 +3,18 @@ connection: "thelook"
 # include all the views
 include: "/views/**/*.view.lkml"
 
-datagroup: cmu_testing_default_datagroup {
-   sql_trigger: SELECT MAX(id) FROM etl_log;;
-  max_cache_age: "1 hour"
-}
+#datagroup: cmu_testing_default_datagroup {
+#   sql_trigger: SELECT MAX(id) FROM etl_log;;
+#  max_cache_age: "1 hour"
+#}
 
-persist_with: cmu_testing_default_datagroup
+#persist_with: cmu_testing_default_datagroup
+
+datagroup: cmu_datagroup {
+  max_cache_age: "24 hours"
+  sql_trigger: SELECT CURDATE() ;;
+}
+persist_with: cmu_datagroup
 
 explore: account {}
 
@@ -30,7 +36,30 @@ explore: connection_reg_r3 {}
 
 explore: dept {}
 
-explore: employees {}
+explore: employees {
+  join: pdt_order_details {
+    type: left_outer
+    sql_on: ${employees.emp_id} = ${pdt_order_details.user_id} ;;
+    relationship: many_to_many
+  }
+}
+
+# Place in `cmu_testing` model
+explore: +employees {
+  aggregate_table: rollup__name__pdt_order_details_gender__pdt_order_details_user_id {
+    query: {
+      dimensions: [name, pdt_order_details.gender, pdt_order_details.user_id]
+      measures: [sumEmp]
+      filters: [pdt_order_details.is_young: "No"]
+      timezone: "UTC"
+    }
+
+    materialization: {
+      datagroup_trigger: cmu_datagroup
+    }
+  }
+}
+
 
 explore: events {
   join: users {
@@ -172,24 +201,24 @@ explore: persons2 {}
 
 explore: products {}
 
-explore: salary {
-  join: dept {
-    type: left_outer
-    sql_on: ${salary.dept_id} = ${dept.dept_id} ;;
-    relationship: many_to_one
-  }
-  aggregate_table: rollup__dept_id__salary {
-    query: {
-      dimensions: [dept_id, salary]
-      measures: [Salary_Amount, count]
-      timezone: "UTC"
-    }
+#explore: salary {
+#  join: dept {
+#    type: left_outer
+#    sql_on: ${salary.dept_id} = ${dept.dept_id} ;;
+#    relationship: many_to_one
+#  }
+#  aggregate_table: rollup__dept_id__salary {
+#    query: {
+#      dimensions: [dept_id, salary]
+#      measures: [Salary_Amount, count]
+#      timezone: "UTC"
+#    }
 
-    materialization: {
-      datagroup_trigger: cmu_testing_default_datagroup
-    }
-  }
-}
+  #  materialization: {
+  #    datagroup_trigger: cmu_testing_default_datagroup
+  #  }
+  #}
+#}
 
 explore: saralooker {
   join: users {
